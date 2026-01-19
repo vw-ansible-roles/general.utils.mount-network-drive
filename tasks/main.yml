@@ -1,5 +1,76 @@
 ---
 # tasks file
-- name: Test Message
-  ansible.builtin.debug:
-    msg: "Hello World"
+- name: Get settings from Json Host file
+  set_fact:
+    sshfs_json_settings: "{{ lookup('file', sshfs_usersandgroups_json) | from_json }}"
+  no_log: "{{ no_debug }}"
+
+- name: Update repositories cache and install "sshfs" package
+  ansible.builtin.apt:
+    name: sshfs
+    update_cache: yes
+
+- name: Create parent mount dir
+  ansible.builtin.file:
+    path: "{{ sshfs_root_mountdir }}"
+    state: directory
+    owner: "root"
+    group: "users"
+    mode: '0750'
+
+- name: Create mount dirs for sshfs
+  ansible.builtin.file:
+    path: "{{ sshfs_root_mountdir }}/{{ item.name }}/{{ item.remote_host }}/{{ item.remote_user }}/{{ item.mountdir_name }}"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "root"
+    mode: '0700'
+  loop: "{{ sshfs_users }}"
+
+- name: Set host(s) key(s)
+  include_tasks: add_host_key.yml
+  loop: "{{ sshfs_users }}"
+    
+#~ - name: Gérer le bloc Ansible dans /etc/fstab
+  #~ ansible.builtin.blockinfile:
+    #~ path: /etc/fstab
+    #~ marker: "# {mark} ANSIBLE MANAGED USER MOUNTS"
+    #~ create: false
+    #~ block: |
+      #~ {% for u in sshfs_users %}
+      #~ {{ u.remote_user }}@{{ u.remote_host }}:{{ u.remote_path }} {{ sshfs_root_mountdir }}/{{ u.name }}/{{ u.remote_host }}/{{ u.remote_user }} fuse.sshfs uid={{ (sshfs_json_settings.users | selectattr('name', 'equalto', u.name) | map(attribute='uid') | first) }},gid=0,port={{ u.remote_port }},noauto,_netdev,identityfile={{ (sshfs_json_settings.users | selectattr('name', 'equalto', u.name) | map(attribute='home') | first) }}/.ssh/{{ u.identity_filename }} 0 0
+      #~ {% endfor %}
+  #~ register: sshfs_fstab_update
+
+#~ - name: Recharger /etc/fstab
+  #~ ansible.builtin.command: mount -a
+  #~ become: true
+  #~ when: sshfs_fstab_update.changed
+
+#~ - name: Créer un service Sftp pour chaque user
+  #~ copy:
+    #~ dest: "/etc/systemd/system/{{ sshfs_systemd_unit_name_prefix }}-{{ item.name }}-automount.service"
+    #~ content: |
+      #~ [Unit]
+      #~ Description=Mount SFTP {{ sshfs_root_mountdir }}/{{ item.name }}
+      #~ After=network.target
+      
+      #~ [Service]
+      #~ Type=oneshot
+      #~ User={{ item.name }}
+      #~ ExecStart=/bin/mount {{ sshfs_root_mountdir }}/{{ item.name }}
+      #~ RemainAfterExit=yes
+      
+      #~ [Install]
+      #~ WantedBy=multi-user.target
+  #~ loop: "{{ sshfs_users }}"
+
+#~ - name: Reload systemd
+  #~ command: systemctl daemon-reload
+  
+#~ - name: Enable and Start Sftp service for each user
+  #~ ansible.builtin.systemd:
+    #~ name: "{{ sshfs_systemd_unit_name_prefix }}-{{ item.name }}-automount.service"
+    #~ enabled: yes
+    #~ state: restarted
+  #~ loop: "{{ sshfs_users }}"

@@ -1,19 +1,59 @@
 {
   "users": [
     {
-      "name": "admin",
-      "password": "P@55w0rd0123!",
-      "shell": "/bin/bash"
+      "comment": "Domain admin",
+      "name": "administrator",
+      "uid": "2000",
+      "group": "admins",
+      "secondarygroups": "",
+      "password": "P@55w0rd1",
+      "update_password": "always",
+      "authorized_keys": "",
+      "generate_ssh_key": "no",
+      "ssh_key_file": ".ssh/id_rsa",
+      "ssh_key_passphrase": "",
+      "ssh_key_type": "rsa",
+      "create_home": "yes",
+      "home": "/home/admin",
+      "shell": "/bin/bash",
+      "email": "admin@domain.org",
+      "issystemaccount": "no"
     },
     {
-      "name": "jack",
-      "password": "P@55w0rd4567$!",
-      "shell": "/bin/sh"
-    },
-    {
+      "comment": "John Smith",
       "name": "john",
-      "password": "P@55w0rd8901%",
-      "shell": "/bin/bash"
+      "uid": "",
+      "group": "users",
+      "secondarygroups": "",
+      "password": "P@55w0rd1",
+      "update_password": "always",
+      "authorized_keys": "",
+      "generate_ssh_key": "no",
+      "ssh_key_file": ".ssh/id_rsa",
+      "ssh_key_passphrase": "",
+      "ssh_key_type": "rsa",
+      "create_home": "yes",
+      "home": "/home/john",
+      "shell": "/bin/bash",
+      "email": "john@domain.org",
+      "issystemaccount": "no"
+    }
+  ],
+  "groups":  [
+    {
+      "name": "users",
+      "gid": "",
+      "issystemgroup": "no"
+    },
+    {
+      "name": "admins",
+      "gid": "2000",
+      "issystemgroup": "no"
+    },
+    {
+      "name": "daemons",
+      "gid": "",
+      "issystemgroup": "yes"
     }
   ]
 }
