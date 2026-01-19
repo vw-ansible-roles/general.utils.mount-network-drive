@@ -2,11 +2,14 @@
   command: "ssh-keyscan -p {{ item.remote_port }} {{ item.remote_host }}"
   register: sshfs_remote_host_key
 
-- debug: var=sshfs_remote_host_key.stdout
-
 - name: Add target host(s) key(s) to known_hosts files
   ansible.builtin.known_hosts:
-    name: "[{{ item.remote_host }}]:{{ item.remote_port }}"
+    name: >-
+      {% if item.remote_port|int != 22 -%}
+      [{{ item.remote_host }}]:{{ item.remote_port }}
+      {%- else -%}
+      {{ item.remote_host }}
+      {%- endif %}
     path: "{{ (sshfs_json_settings.users | selectattr('name', 'equalto', item.name) | map(attribute='home') | first) }}/.ssh/known_hosts"
     key: "{{ sshfs_remote_host_key.stdout }}"
     state: present
