@@ -46,7 +46,7 @@
     create: false
     block: |
       {% for u in sshfs_users %}
-      {{ u.remote_user }}@{{ u.remote_host }}:{{ u.remote_path }} {{ sshfs_root_mountdir }}/{{ u.name }}/{{ u.remote_host }}/{{ u.remote_port }}/{{ u.remote_user }}/{{ u.mountdir_name }} fuse.sshfs uid={{ (sshfs_json_settings.users | selectattr('name', 'equalto', u.name) | map(attribute='uid') | first) }},gid=0,port={{ u.remote_port }},noauto,_netdev,identityfile={{ (sshfs_json_settings.users | selectattr('name', 'equalto', u.name) | map(attribute='home') | first) }}/.ssh/{{ u.identity_filename }} 0 0
+      {{ u.remote_user }}@{{ u.remote_host }}:{{ u.remote_path }} {{ sshfs_root_mountdir }}/{{ u.name }}/{{ u.remote_host }}/{{ u.remote_port }}/{{ u.remote_user }}/{{ u.mountdir_name }} fuse.sshfs uid={{ (sshfs_json_settings.users | selectattr('name', 'equalto', u.name) | map(attribute='uid') | first) }},gid=0,port={{ u.remote_port }},reconnect,noauto,_netdev,identityfile={{ (sshfs_json_settings.users | selectattr('name', 'equalto', u.name) | map(attribute='home') | first) }}/.ssh/{{ u.identity_filename }} 0 0
       {% endfor %}
   register: sshfs_fstab_update
 
@@ -65,20 +65,35 @@
   become: true
   when: sshfs_fstab_update.changed
 
+- name: Générer le script SSHFS parallèle pour chaque utilisateur
+  ansible.builtin.template:
+    src: "mount-sshfs.sh.j2"
+    dest: "{{ sshfs_scriptsdir }}/mount-sshfs-{{ item }}"
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ sshfs_users | map(attribute='name') | unique | list }}"
+  loop_control:
+    label: "{{ item }}"
+
 - name: Créer service systemd SSHFS pour chaque utilisateur
-  copy:
+  ansible.builtin.copy:
     dest: "/etc/systemd/system/sshfs-{{ item }}-automount.service"
+    owner: root
+    group: root
+    mode: '0644'
     content: |
       [Unit]
-      Description=Mount SFTP for {{ item }}
-      After=network.target
+      Description=SSHFS mounts for {{ item }}
+      After=network-online.target
+      Wants=network-online.target
       
       [Service]
-      Type=oneshot
+      Type=simple
       User={{ item }}
-      {% for mnt in sshfs_users | selectattr('name','equalto',item) | list %}
-      ExecStart=/bin/mount {{ sshfs_root_mountdir }}/{{ mnt.name }}/{{ mnt.remote_host }}/{{ mnt.remote_port }}/{{ mnt.remote_user }}/{{ mnt.mountdir_name }}
-      {% endfor %}
+      ExecStart={{ sshfs_scriptsdir }}/mount-sshfs-{{ item }}
+      Restart=always
+      RestartSec=10
       RemainAfterExit=yes
       
       [Install]

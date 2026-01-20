@@ -2,3 +2,4 @@
 # vars file
 sshfs_systemd_unit_name_prefix: sshfs
 sshfs_root_mountdir: "/mnt"
+sshfs_scriptsdir: "/usr/local/sbin"

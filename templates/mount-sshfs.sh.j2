@@ -1,0 +1,23 @@
+#!/bin/bash
+set -e
+
+{% for mnt in sshfs_users | selectattr('name','equalto', item) | list %}
+(
+    mntpoint="{{ sshfs_root_mountdir }}/{{ mnt.name }}/{{ mnt.remote_host }}/{{ mnt.remote_port }}/{{ mnt.remote_user }}/{{ mnt.mountdir_name }}"
+    while true; do
+        if mountpoint -q "$mntpoint"; then
+            break
+        fi
+        echo "Trying to mount {{ mnt.remote_user }}@{{ mnt.remote_host }}..."
+        if mount "$mntpoint"; then
+            echo "Mount succeeded for {{ mnt.remote_user }}@{{ mnt.remote_host }}"
+            break
+        else
+            echo "Mount failed for {{ mnt.remote_user }}@{{ mnt.remote_host }}, retrying in 10s..."
+            sleep 10
+        fi
+    done
+) &
+{% endfor %}
+
+wait
